@@ -49,23 +49,18 @@ def create_app(db_URI="", test_config=None):
     """
     @app.route('/categories', methods=['GET'])
     def get_categories():
-        try:
-            categories = Category.query.all()
-            if (len(categories) == 0):
-                abort(404)
+        categories = Category.query.all()
+        if (len(categories) == 0):
+            abort(404)
 
-            rsCategories = {
-                category.id: category.type for category in categories}
+        rsCategories = {
+            category.id: category.type for category in categories}
 
-            return jsonify({
-                'success': True,
-                'categories': rsCategories,
-                'total_categories': len(categories)
-            })
-
-        except Exception as e:
-            logging.exception("message")
-            abort(422)
+        return jsonify({
+            'success': True,
+            'categories': rsCategories,
+            'total_categories': len(categories)
+        })
 
     """
     @TODO:
@@ -174,7 +169,7 @@ def create_app(db_URI="", test_config=None):
     def get_question_search_term():
         body = request.get_json()
         search_term = body.get('searchTerm', None)
-        try:
+        if search_term is not None:
             selection = Question.query.order_by(Question.id).filter(
                         Question.question.ilike('%{}%'.format(search_term)))
             current_questions = paginate(request, selection)
@@ -188,7 +183,7 @@ def create_app(db_URI="", test_config=None):
                     'current_category': [(question['category'])
                                             for question in current_questions]
                 })
-        except Exception:
+        else :
             abort(422)
     """
     @TODO:
@@ -207,7 +202,7 @@ def create_app(db_URI="", test_config=None):
             abort(404)
 
         selection = Question.query.filter(
-            Question.category == category_id).all()
+            Question.category == str(category_id)).all()
         questions = paginate(request, selection)
         total = Question.query.all()
 
@@ -218,7 +213,7 @@ def create_app(db_URI="", test_config=None):
             'success': True,
             'questions': questions,
             'total_questions': len(total),
-            'current_category': category_id
+            'current_category': category.format()
         })
     """
     @TODO:
@@ -247,25 +242,19 @@ def create_app(db_URI="", test_config=None):
     
     @app.route('/quizzes', methods=['POST'])
     def get_quizzes():
-        try:
-            body = request.get_json()
-            previous_questions = body.get('previous_questions')
-            quiz_category = body.get('quiz_category')
+        body = request.get_json()
+        previous_questions = body.get('previous_questions')
+        quiz_category = body.get('quiz_category')
 
-            question = random_question(quiz_category['id'], previous_questions)
+        question = random_question(quiz_category['id'], previous_questions)
 
-            if question is None:
-                return jsonify({
-                    'success': True
-                })
+        if question is None:
+            abort(404)
 
-            return jsonify({
-                'success': True,
-                'question': question.format()
-            })
-
-        except Exception:
-            abort(422)
+        return jsonify({
+            'success': True,
+            'question': question.format()
+        })
     """
     @TODO:
     Create error handlers for all expected errors
@@ -290,6 +279,37 @@ def create_app(db_URI="", test_config=None):
             'success': False,
             'message': 'resource not found'
         }), 404
+    
+
+    @app.errorhandler(400)
+    def bad_request_error_handler(error):
+        '''
+        Error handler for status code 400.
+        '''
+        return jsonify({
+            'success': False,
+            'message': 'Bad request'
+        }), 400
+
+    @app.errorhandler(405)
+    def method_not_allowed_error_handler(error):
+        '''
+        Error handler for status code 405.
+        '''
+        return jsonify({
+            'success': False,
+            'message': 'Method not allowed'
+        }), 405
+
+    @app.errorhandler(500)
+    def internal_server_error_handler(error):
+        '''
+        Error handler for status code 500.
+        '''
+        return jsonify({
+            'success': False,
+            'message': 'Internal server error'
+        }), 500
     
     return app
 

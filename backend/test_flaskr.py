@@ -51,6 +51,16 @@ class TriviaTestCase(unittest.TestCase):
         self.assertEqual(data['total_categories'], 6)
         self.assertEqual(data['total_categories'],
                          len(data['categories'].keys()))
+        
+    def test_get_categories_return_404(self):
+        """
+         Test getting all categories from / categories endpoint ( GET ). Expects 404
+        """
+        with self.app.app_context():
+            Category.query.delete()
+            res = self.client().get('/categories')
+            # test status code
+            self.assertEqual(res.status_code, 404)
 
     def test_get_paginated_questions(self):
         with self.app.app_context():
@@ -115,8 +125,11 @@ class TriviaTestCase(unittest.TestCase):
         self.assertEqual(data['message'], 'resource not found')
 
     def test_create_question(self):
+        """
+         Test create a question from /questions/create endpoint ( POST ). Expects 200
+        """
         with self.app.app_context():
-            total_questions_before_creating_new_question = len(
+            total_questions_before = len(
                 Question.query.all())
             res = self.client().post('/questions/create', json = {
                 'question': 'test question',
@@ -128,10 +141,12 @@ class TriviaTestCase(unittest.TestCase):
 
             self.assertEqual(res.status_code, 200)
             self.assertTrue(data['questions'])
-            self.assertEqual(data['total_questions'],
-                            total_questions_before_creating_new_question + 1)
+            self.assertEqual(data['total_questions'], total_questions_before + 1)
 
     def test_search_question(self):
+        """
+         Test searching a question from /questions endpoint ( POST ). Expects 200
+        """
         with self.app.app_context():
             res = self.client().post('/questions', json = {'searchTerm': 'title'})
             data = json.loads(res.data.decode('utf-8'))
@@ -141,8 +156,20 @@ class TriviaTestCase(unittest.TestCase):
             self.assertEqual(len(data['questions']), len(Question.query.order_by(
                 Question.id).filter(Question.question.ilike(
                     '%{}%'.format('title'))).all()))
+            
+    def test_search_question_return_404(self):
+        """
+         Test searching a question from /questions endpoint ( POST ). Expects 404
+        """
+        with self.app.app_context():
+            res = self.client().post('/questions', json = {'searchTerm': 'title 1'})
+            # test status code
+            self.assertEqual(res.status_code, 404)
 
     def test_get_quizzes(self):
+        """
+         Test searching a quizze from /quizzes endpoint ( POST ). Expects 200
+        """
         res = self.client().post('/quizzes',json = {
             'previous_questions': [20],
             'quiz_category': {
@@ -155,6 +182,22 @@ class TriviaTestCase(unittest.TestCase):
         self.assertEqual(res.status_code, 200)
         self.assertTrue(data['question'])
         self.assertEqual(data['question']['category'], 1)
+    
+    def test_get_quizzes_return_404(self):
+        """
+         Test searching a quizze from /quizzes endpoint ( POST ). Expects 404
+        """
+        with self.app.app_context():
+            Question.query.delete()
+            res = self.client().post('/quizzes',json = {
+                'previous_questions': [],
+                'quiz_category': {
+                    'id': '999',
+                    'type': 'Science'
+                }
+            })
+
+            self.assertEqual(res.status_code, 404)
 
 # Make the tests conveniently executable
 if __name__ == "__main__":
