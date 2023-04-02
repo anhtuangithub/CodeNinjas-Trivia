@@ -1,3 +1,4 @@
+import random
 import logging
 import os
 from flask import Flask, request, abort, jsonify
@@ -199,24 +200,25 @@ def create_app(db_URI="", test_config=None):
     """
     @app.route('/categories/<int:category_id>/questions', methods=['GET'])
     def get_questions_categories(category_id):
-        current_category = Category.query.filter(
+        category = Category.query.filter(
             Category.id == category_id).one_or_none()
 
-        if (current_category is None):
+        if (category is None):
             abort(404)
 
         selection = Question.query.filter(
             Question.category == category_id).all()
-        current_questions = paginate(request, selection)
+        questions = paginate(request, selection)
+        total = Question.query.all()
 
-        if (len(current_questions) == 0):
+        if (len(questions) == 0):
             abort(404)
 
         return jsonify({
             'success': True,
-            'questions': current_questions,
-            'total_questions': len(Question.query.all()),
-            'current_category': current_category.format()
+            'questions': questions,
+            'total_questions': len(total),
+            'current_category': category_id
         })
     """
     @TODO:
@@ -229,39 +231,37 @@ def create_app(db_URI="", test_config=None):
     one question at a time is displayed, the user is allowed to answer
     and shown whether they were correct or not.
     """
+    def random_question(category, previous_questions):
+        if category == 0:
+            questions = Question.query.filter(
+                Question.id.notin_((previous_questions))).all()
+        else:
+            questions = Question.query.filter_by(
+                category=category).filter(
+                Question.id.notin_((previous_questions))).all()
+
+        if len(questions) == 0:
+            return None
+        else:
+            return questions[random.randrange(0, len(questions))]
+    
     @app.route('/quizzes', methods=['POST'])
     def get_quizzes():
         try:
             body = request.get_json()
-            previous_questions = body.get('previous_questions', None)
-            quiz_category = body.get('quiz_category', None)
-            category_id = int(quiz_category['id'])
-            if (len(previous_questions) > 0):
-                if (category_id > 0):
-                    current_question = Question.query.filter(
-                      Question.category == category_id)\
-                        .filter(~Question.id.in_(previous_questions))\
-                        .order_by(func.random()).first()
-                else:
-                    current_question = Question.query.filter(~Question.id.in_(
-                        previous_questions)).order_by(func.random()).first()
-            else:
-                if (category_id > 0):
-                    current_question = Question.query.filter(
-                        Question.category == quiz_category['id'])\
-                          .order_by(func.random()).first()
-                else:
-                    current_question = Question.query.order_by(
-                        func.random()).first()
+            previous_questions = body.get('previous_questions')
+            quiz_category = body.get('quiz_category')
 
-            if current_question is not None:
-                formatted_question = current_question.format()
-            else:
-                formatted_question = None
+            question = random_question(quiz_category['id'], previous_questions)
+
+            if question is None:
+                return jsonify({
+                    'success': True
+                })
 
             return jsonify({
                 'success': True,
-                'question': formatted_question
+                'question': question.format()
             })
 
         except Exception:
